@@ -1,0 +1,47 @@
+- name: Installer Node Exporter sur les VMs
+  hosts: all
+  become: true
+  tasks:
+    - name: Créer un utilisateur pour Node Exporter
+      user:
+        name: node_exporter
+        shell: /usr/sbin/nologin
+
+    - name: Télécharger Node Exporter
+      get_url:
+        url: https://github.com/prometheus/node_exporter/releases/download/v1.8.1/node_exporter-1.8.1.linux-amd64.tar.gz
+        dest: /tmp/node_exporter.tar.gz
+
+    - name: Extraire l’archive
+      unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: /opt/
+        remote_src: yes
+
+    - name: Renommer le dossier
+      command: mv /opt/node_exporter-* /opt/node_exporter
+      args:
+        removes: /opt/node_exporter
+
+    - name: Créer le service systemd
+      copy:
+        dest: /etc/systemd/system/node_exporter.service
+        content: |
+          [Unit]
+          Description=Node Exporter
+          After=network.target
+
+          [Service]
+          User=node_exporter
+          Group=node_exporter
+          Type=simple
+          ExecStart=/opt/node_exporter/node_exporter
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Démarrer et activer Node Exporter
+      systemd:
+        name: node_exporter
+        enabled: true
+        state: started
